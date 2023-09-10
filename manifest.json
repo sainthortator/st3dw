@@ -1,0 +1,11 @@
+{
+    "display_name": "ST3DW",
+    "loading_order": 5,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "sainthortator",
+    "version": "0.0.0",
+    "homePage": "https://github.com/sainthortator/st3dw"
+}
