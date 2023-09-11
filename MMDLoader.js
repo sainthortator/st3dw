@@ -1,4 +1,4 @@
-import {
+const {
 	AddOperation,
 	AnimationClip,
 	Bone,
@@ -37,10 +37,10 @@ import {
 	RGB_PVRTC_2BPPV1_Format,
 	RGB_ETC1_Format,
 	RGB_ETC2_Format
-} from 'three';
-import { MMDToonShader } from '../shaders/MMDToonShader.js';
-import { TGALoader } from '../loaders/TGALoader.js';
-import { MMDParser } from '../libs/mmdparser.module.js';
+} = await import('./three.js');
+const { MMDToonShader } = await import('./MMDToonShader.js');
+const { TGALoader } = await import('./TGALoader.js');
+const { MMDParser } = await import('./mmdparser.module.js');
 
 /**
  * Dependencies

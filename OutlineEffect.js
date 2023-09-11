@@ -1,10 +1,10 @@
-import {
+const {
 	BackSide,
 	Color,
 	ShaderMaterial,
 	UniformsLib,
 	UniformsUtils
-} from 'three';
+} = await import('./three.js');
 
 /**
  * Reference: https://en.wikipedia.org/wiki/Cel_shading
