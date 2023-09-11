@@ -2,6 +2,7 @@ const THREE = await import('./modules/three.js');
 const { MMDLoader } = await import('./modules/MMDLoader.js');
 const { MMDAnimationHelper } = await import('./modules/MMDAnimationHelper.js');
 const { Clock } = await import('./modules/three.js');
+const { OutlineEffect } = await import('./modules/OutlineEffect.js');
 
 const clock = new THREE.Clock();
 
@@ -26,6 +27,7 @@ camera.position.y = 17;
 const scene = new THREE.Scene();
 scene.add(camera);
 
+const outlineEffect = new OutlineEffect(renderer);
 const animHelper = new MMDAnimationHelper();
 const loader = new MMDLoader();
 
@@ -51,7 +53,7 @@ scene.add(light);
 function animate() {
 	requestAnimationFrame(animate);
 	animHelper.update(clock.getDelta());
-	renderer.render(scene, camera);
+	outlineEffect.render(scene, camera);
 }
 
 animate();
