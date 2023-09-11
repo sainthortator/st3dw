@@ -1,5 +1,5 @@
-const THREE = await import('./three.js');
-const { MMDLoader } = await import('./MMDLoader.js');
+const THREE = await import('./modules/three.js');
+const { MMDLoader } = await import('./modules/MMDLoader.js');
 
 const renderer = new THREE.WebGLRenderer({
 	antialias: true,
