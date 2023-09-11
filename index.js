@@ -1,5 +1,9 @@
 const THREE = await import('./modules/three.js');
 const { MMDLoader } = await import('./modules/MMDLoader.js');
+const { MMDAnimationHelper } = await import('./modules/MMDAnimationHelper.js');
+const { Clock } = await import('./modules/three.js');
+
+const clock = new THREE.Clock();
 
 const renderer = new THREE.WebGLRenderer({
 	antialias: true,
@@ -22,10 +26,22 @@ camera.position.y = 17;
 const scene = new THREE.Scene();
 scene.add(camera);
 
+const animHelper = new MMDAnimationHelper();
 const loader = new MMDLoader();
 
-loader.load('scripts/extensions/st3dw/test_model/model.pmx', mesh => {
-    scene.add(mesh);
+loader.loadWithAnimation(
+	'scripts/extensions/st3dw/test_model/model.pmx',
+	['scripts/extensions/st3dw/test_model/defanim.vmd'],
+	mmd => {
+		const mesh = mmd.mesh;
+		scene.add(mesh);
+
+		// console.log(mesh.morphTargetDictionary);
+
+		animHelper.add(mesh, {
+			animation: mmd.animation,
+			physics: true
+		});
 });
 
 const light = new THREE.AmbientLight(0x404040);
@@ -34,6 +50,7 @@ scene.add(light);
 
 function animate() {
 	requestAnimationFrame(animate);
+	animHelper.update(clock.getDelta());
 	renderer.render(scene, camera);
 }
 
