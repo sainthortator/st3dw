@@ -23,8 +23,8 @@ container.append(renderer.domElement);
 $('#expression-image').css('display', 'none');
 
 const camera = new THREE.PerspectiveCamera(50, 1);
-camera.position.z = 20;
-camera.position.y = 10;
+camera.position.z = 7;
+camera.position.y = 17;
 
 const scene = new THREE.Scene();
 scene.add(camera);
@@ -52,15 +52,18 @@ const light = new THREE.AmbientLight(0x404040);
 light.intensity = 60;
 scene.add(light);
 
-let boneIndex = 0;
-let boneRotationValue = 0;
+const changedBones = {};
 
-function animate() {
-	requestAnimationFrame(animate);
+function render() {
+	requestAnimationFrame(render);
 	animHelper.update(clock.getDelta());
 
-	if (mesh) {
-		mesh.skeleton.bones[boneIndex].rotation.set(0, +boneRotationValue, 0);
+	if (mesh && !jQuery.isEmptyObject(changedBones)) {
+		for (const key in changedBones) {
+			const bone = mesh.skeleton.bones[key];
+			const coords = changedBones[key];
+			bone.rotation.set(coords.x, coords.y, coords.z);
+		}
 	}
 
 	outlineEffect.render(scene, camera);
@@ -194,6 +197,22 @@ const testExpressionsList = {
 			i: [47, 49, 51],
 			value: 0
 		}
+	},
+	"head": {
+		"tilted left": {
+			isBone: true,
+			i: 10,
+			x: 0.1,
+			y: 0,
+			z: 0.25
+		},
+		"tilted right": {
+			isBone: true,
+			i: 10,
+			x: 0.1,
+			y: 0,
+			z: -0.25
+		}
 	}
 }
 
@@ -208,7 +227,7 @@ eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
 	}
 });
 
-animate();
+render();
 
 function tranformExpsListToTemplate(list) {
 	let modelMorphsTemplate = {};
@@ -225,7 +244,7 @@ function tranformExpsListToTemplate(list) {
 }
 
 function applyMorphs(obj) {
-	mesh.morphTargetInfluences.forEach((item, index) => {
+	mesh.morphTargetInfluences.forEach((i, index) => {
 		mesh.morphTargetInfluences[index] = 0;
 	})
 	
@@ -238,6 +257,16 @@ function applyMorphs(obj) {
 
 		// console.log(morph);
 
+		if (morph.isBone) {
+			changedBones[index] = {
+				z: morph.z,
+				x: morph.x,
+				y: morph.y
+			};
+
+			continue;
+		}
+
 		if (Array.isArray(index)) {
 			index.forEach(i => {
 				animate(duration, i, value);
@@ -246,19 +275,19 @@ function applyMorphs(obj) {
 			animate(duration, index, value);
 		}
 	}
+}
 
-	function animate(duration, index, value) {
-		let start = performance.now();
-	
-		requestAnimationFrame(function animate(time) {
-			let timeFraction = (time - start) / duration;
-			if (timeFraction > 1) timeFraction = 1;
-	
-			mesh.morphTargetInfluences[index] = Math.pow(timeFraction, 2) * value;
-	
-			if (timeFraction < 1) requestAnimationFrame(animate);
-		});
-	}
+function animate(duration, index, value) {
+	let start = performance.now();
+
+	requestAnimationFrame(function animate(time) {
+		let timeFraction = (time - start) / duration;
+		if (timeFraction > 1) timeFraction = 1;
+
+		mesh.morphTargetInfluences[index] = Math.pow(timeFraction, 2) * value;
+
+		if (timeFraction < 1) requestAnimationFrame(animate);
+	});
 }
 
 // call this function in the console for check
@@ -298,7 +327,10 @@ window.enableMorphsDebug = function() {
 
 	document.querySelectorAll('.bonesList input')
 		.forEach((elem, index) => elem.addEventListener('input', evt => {
-		boneRotationValue = +evt.target.value;
-		boneIndex = index;
+		changedBones[index] = {
+			x: +evt.target.value,
+			y: 0,
+			z: 0
+		};
 	}));
 }
