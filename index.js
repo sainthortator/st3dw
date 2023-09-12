@@ -23,8 +23,8 @@ container.append(renderer.domElement);
 $('#expression-image').css('display', 'none');
 
 const camera = new THREE.PerspectiveCamera(50, 1);
-camera.position.z = 7;
-camera.position.y = 17;
+camera.position.z = 20;
+camera.position.y = 10;
 
 const scene = new THREE.Scene();
 scene.add(camera);
@@ -60,50 +60,10 @@ function animate() {
 	animHelper.update(clock.getDelta());
 
 	if (mesh) {
-		mesh.skeleton.bones[boneIndex].rotation.set(+boneRotationValue, 0, 0);
+		mesh.skeleton.bones[boneIndex].rotation.set(0, +boneRotationValue, 0);
 	}
 
 	outlineEffect.render(scene, camera);
-}
-
-// call this function in the console for check
-window.enableMorphsDebug = function() {
-	// window.mmd = mesh;
-
-	const morphsList = document.createElement('ol');
-	morphsList.classList.add('morphsList');
-	morphsList.setAttribute('start', 0);
-
-	const elemHtml = `
-		<li>
-			<input type="range" value="0" max="0.99" min="0" step="0.01">
-		</li>
-	`;
-
-	mesh.morphTargetInfluences.forEach(() => {
-		morphsList.insertAdjacentHTML('beforeend', elemHtml);
-	});
-	
-	document.body.append(morphsList);
-
-	document.querySelectorAll('.morphsList input').forEach((elem, index) => elem.addEventListener('input', evt => {
-		mesh.morphTargetInfluences[index] = +evt.target.value;
-	}));
-
-	const bonesList = document.createElement('ol');
-	bonesList.classList.add('bonesList');
-	bonesList.setAttribute('start', 0);
-
-	mesh.skeleton.bones.forEach(() => {
-		bonesList.insertAdjacentHTML('beforeend', elemHtml);
-	});
-	
-	document.body.append(bonesList);
-
-	document.querySelectorAll('.bonesList input').forEach((elem, index) => elem.addEventListener('input', evt => {
-		boneRotationValue = +evt.target.value;
-		boneIndex = index;
-	}));
 }
 
 const testExpressionsList = {
@@ -237,6 +197,19 @@ const testExpressionsList = {
 	}
 }
 
+eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
+	const chat = getContext().chat;
+	const lastMes = chat[chat.length - 1];
+	const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(testExpressionsList));
+	
+	if (lastMes.is_name) {
+		const output = await generateQuietPrompt(`Pause your roleplay. Now you will recognize ${lastMes.name}'s realistic exact facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions and feelings of this character. Template:\n${jsonTemplate}\n\nProvide JSON only.`)
+		applyMorphs(JSON.parse(output));
+	}
+});
+
+animate();
+
 function tranformExpsListToTemplate(list) {
 	let modelMorphsTemplate = {};
 
@@ -251,37 +224,26 @@ function tranformExpsListToTemplate(list) {
 	return modelMorphsTemplate;
 }
 
-eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
-	const chat = getContext().chat;
-	const lastMes = chat[chat.length - 1];
-	const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(testExpressionsList));
-	
-	if (lastMes.is_name) {
-		const output = await generateQuietPrompt(`Pause your roleplay. Now you will recognize ${lastMes.name}'s realistic exact facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions and feelings of this character. Template:\n${jsonTemplate}\n\nProvide JSON only. Don't put value in arrays.`)
-		applyMorphs(JSON.parse(output));
-	}
-});
-
-animate();
-
 function applyMorphs(obj) {
 	mesh.morphTargetInfluences.forEach((item, index) => {
 		mesh.morphTargetInfluences[index] = 0;
 	})
 	
 	for (let key in obj) {
-		const morph = testExpressionsList[key][obj[key]];
-		const index = morph.i;
-		const value = morph.value;
+		const
+			morph = testExpressionsList[key][obj[key]],
+			index = morph.i,
+			value = morph.value,
+			duration = 400;
 
-		console.log(testExpressionsList[key][obj[key]]);
+		// console.log(morph);
 
 		if (Array.isArray(index)) {
 			index.forEach(i => {
-				animate(400, i, value);
+				animate(duration, i, value);
 			});
 		} else {
-			animate(400, index, value);
+			animate(duration, index, value);
 		}
 	}
 
@@ -297,4 +259,46 @@ function applyMorphs(obj) {
 			if (timeFraction < 1) requestAnimationFrame(animate);
 		});
 	}
+}
+
+// call this function in the console for check
+window.enableMorphsDebug = function() {
+	// window.mmd = mesh;
+
+	const morphsList = document.createElement('ol');
+	morphsList.classList.add('morphsList');
+	morphsList.setAttribute('start', 0);
+
+	const elemHtml = `
+		<li>
+			<input type="range" value="0" max="0.99" min="0" step="0.01">
+		</li>
+	`;
+
+	mesh.morphTargetInfluences.forEach(() => {
+		morphsList.insertAdjacentHTML('beforeend', elemHtml);
+	});
+	
+	document.body.append(morphsList);
+
+	document.querySelectorAll('.morphsList input')
+		.forEach((elem, index) => elem.addEventListener('input', evt => {
+		mesh.morphTargetInfluences[index] = +evt.target.value;
+	}));
+
+	const bonesList = document.createElement('ol');
+	bonesList.classList.add('bonesList');
+	bonesList.setAttribute('start', 0);
+
+	mesh.skeleton.bones.forEach(() => {
+		bonesList.insertAdjacentHTML('beforeend', elemHtml);
+	});
+	
+	document.body.append(bonesList);
+
+	document.querySelectorAll('.bonesList input')
+		.forEach((elem, index) => elem.addEventListener('input', evt => {
+		boneRotationValue = +evt.target.value;
+		boneIndex = index;
+	}));
 }
