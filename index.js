@@ -154,7 +154,7 @@ const testExpressionsList = {
 		},
 		"pinched": {
 			i: 18,
-			value: 1
+			value: 0.9
 		},
 		"neutral": {
 			i: [6, 10, 18],
@@ -232,24 +232,6 @@ const testExpressionsList = {
 		},
 		"neutral": {
 			i: [47, 49, 51],
-			value: 0
-		}
-	},
-	"eyes": {
-		"squinted": {
-			i: 33,
-			value: 1
-		},
-		"squinted in anger": {
-			i: 34,
-			value: 1
-		},
-		"very wide opened": {
-			i: 31,
-			value: 1
-		},
-		"neutral": {
-			i: [33, 34, 31],
 			value: 0
 		}
 	}
