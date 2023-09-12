@@ -2,6 +2,9 @@ const THREE = await import('./modules/three.js');
 const { MMDLoader } = await import('./modules/MMDLoader.js');
 const { MMDAnimationHelper } = await import('./modules/MMDAnimationHelper.js');
 const { OutlineEffect } = await import('./modules/OutlineEffect.js');
+import { getContext } from "../../extensions.js";
+import { generateQuietPrompt } from "../../../script.js";
+import { eventSource, event_types } from "../../../script.js";
 
 const clock = new THREE.Clock();
 
@@ -63,6 +66,7 @@ function animate() {
 	outlineEffect.render(scene, camera);
 }
 
+// call this function in the console for check
 window.enableMorphsDebug = function() {
 	// window.mmd = mesh;
 
@@ -102,4 +106,213 @@ window.enableMorphsDebug = function() {
 	}));
 }
 
+const testExpressionsList = {
+	"right eye": {
+		"closed": {
+			i: 24,
+			value: 1
+		},
+		"closed smiling": {
+			i: 22,
+			value: 1
+		},
+		"half-closed": {
+			i: 24,
+			value: 0.25
+		},
+		"opened": {
+			i: [24, 22],
+			value: 0
+		}
+	},
+	"left eye": {
+		"closed": {
+			i: 25,
+			value: 1
+		},
+		"closed smiling": {
+			i: 23,
+			value: 1
+		},
+		"half-closed": {
+			i: 25,
+			value: 0.25
+		},
+		"opened": {
+			i: [25, 23],
+			value: 0
+		}
+	},
+	"lip corners": {
+		"down": {
+			i: 6,
+			value: 1
+		},
+		"upturned": {
+			i: 10,
+			value: 0.8
+		},
+		"pinched": {
+			i: 18,
+			value: 1
+		},
+		"neutral": {
+			i: [6, 10, 18],
+			value: 0
+		}
+	},
+	"mouth": {
+		"opened round": {
+			i: 4,
+			value: 1
+		},
+		"opened wide": {
+			i: 0,
+			value: 0.7
+		},
+		"fake smile": {
+			i: 8,
+			value: 0.4
+		},
+		"closed": {
+			i: [4, 0, 8],
+			value: 0
+		}
+	},
+	"tongue": {
+		"out": {
+			i: 15,
+			value: 1
+		},
+		"in": {
+			i: 15,
+			value: 0
+		}
+	},
+	"blushed": {
+		"yes": {
+			i: 60,
+			value: 1
+		},
+		"no": {
+			i: 60,
+			value: 0
+		}
+	},
+	"right brow": {
+		"sadly turned upward": {
+			i: 46,
+			value: 1
+		},
+		"upturned": {
+			i: 48,
+			value: 1
+		},
+		"angry furrowed": {
+			i: 50,
+			value: 1
+		},
+		"neutral": {
+			i: [46, 48, 50],
+			value: 0
+		}
+	},
+	"left brow": {
+		"sadly turned upward": {
+			i: 47,
+			value: 1
+		},
+		"upturned": {
+			i: 49,
+			value: 1
+		},
+		"angry furrowed": {
+			i: 51,
+			value: 1
+		},
+		"neutral": {
+			i: [47, 49, 51],
+			value: 0
+		}
+	},
+	"eyes": {
+		"squinted": {
+			i: 33,
+			value: 1
+		},
+		"squinted in anger": {
+			i: 34,
+			value: 1
+		},
+		"very wide opened": {
+			i: 31,
+			value: 1
+		},
+		"neutral": {
+			i: [33, 34, 31],
+			value: 0
+		}
+	}
+}
+
+function tranformExpsListToTemplate(list) {
+	let modelMorphsTemplate = {};
+
+	for (const key in list) {
+		modelMorphsTemplate[key] = [];
+		
+		for (const subkey in list[key]) {
+			modelMorphsTemplate[key].push(subkey);
+		}
+	}
+
+	return modelMorphsTemplate;
+}
+
+eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
+	const chat = getContext().chat;
+	const lastMes = chat[chat.length - 1];
+	const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(testExpressionsList));
+	
+	if (lastMes.is_name) {
+		const output = await generateQuietPrompt(`Pause your roleplay. Now you will recognize ${lastMes.name}'s realistic exact facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions and feelings of this character. Template:\n${jsonTemplate}\n\nProvide JSON only. Don't put value in arrays.`)
+		applyMorphs(JSON.parse(output));
+	}
+});
+
 animate();
+
+function applyMorphs(obj) {
+	mesh.morphTargetInfluences.forEach((item, index) => {
+		mesh.morphTargetInfluences[index] = 0;
+	})
+	
+	for (let key in obj) {
+		const morph = testExpressionsList[key][obj[key]];
+		const index = morph.i;
+		const value = morph.value;
+
+		console.log(testExpressionsList[key][obj[key]]);
+
+		if (Array.isArray(index)) {
+			index.forEach(i => {
+				animate(400, i, value);
+			});
+		} else {
+			animate(400, index, value);
+		}
+	}
+
+	function animate(duration, index, value) {
+		let start = performance.now();
+	
+		requestAnimationFrame(function animate(time) {
+			let timeFraction = (time - start) / duration;
+			if (timeFraction > 1) timeFraction = 1;
+	
+			mesh.morphTargetInfluences[index] = Math.pow(timeFraction, 2) * value;
+	
+			if (timeFraction < 1) requestAnimationFrame(animate);
+		});
+	}
+}
