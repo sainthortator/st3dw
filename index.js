@@ -30,11 +30,13 @@ const outlineEffect = new OutlineEffect(renderer);
 const animHelper = new MMDAnimationHelper();
 const loader = new MMDLoader();
 
+let mesh;
+
 loader.loadWithAnimation(
 	'scripts/extensions/st3dw/test_model/model.pmx',
-	['scripts/extensions/st3dw/test_model/defanim.vmd'],
+	'scripts/extensions/st3dw/test_model/defanim.vmd',
 	mmd => {
-		const mesh = mmd.mesh;
+		mesh = mmd.mesh;
 		scene.add(mesh);
 
 		animHelper.add(mesh, {
@@ -47,31 +49,56 @@ const light = new THREE.AmbientLight(0x404040);
 light.intensity = 60;
 scene.add(light);
 
+let boneIndex = 0;
+let boneRotationValue = 0;
+
 function animate() {
 	requestAnimationFrame(animate);
 	animHelper.update(clock.getDelta());
+
+	if (mesh) {
+		mesh.skeleton.bones[boneIndex].rotation.set(+boneRotationValue, 0, 0);
+	}
+
 	outlineEffect.render(scene, camera);
 }
 
 window.enableMorphsDebug = function() {
-	const mesh = animHelper.meshes[0];
+	// window.mmd = mesh;
 
 	const morphsList = document.createElement('ol');
 	morphsList.classList.add('morphsList');
 	morphsList.setAttribute('start', 0);
 
+	const elemHtml = `
+		<li>
+			<input type="range" value="0" max="0.99" min="0" step="0.01">
+		</li>
+	`;
+
 	mesh.morphTargetInfluences.forEach(() => {
-		morphsList.insertAdjacentHTML('beforeend', `
-			<li>
-				<input type="range" value="0" max="0.99" min="0" step="0.01">
-			</li>
-		`);
+		morphsList.insertAdjacentHTML('beforeend', elemHtml);
 	});
 	
 	document.body.append(morphsList);
 
 	document.querySelectorAll('.morphsList input').forEach((elem, index) => elem.addEventListener('input', evt => {
 		mesh.morphTargetInfluences[index] = +evt.target.value;
+	}));
+
+	const bonesList = document.createElement('ol');
+	bonesList.classList.add('bonesList');
+	bonesList.setAttribute('start', 0);
+
+	mesh.skeleton.bones.forEach(() => {
+		bonesList.insertAdjacentHTML('beforeend', elemHtml);
+	});
+	
+	document.body.append(bonesList);
+
+	document.querySelectorAll('.bonesList input').forEach((elem, index) => elem.addEventListener('input', evt => {
+		boneRotationValue = +evt.target.value;
+		boneIndex = index;
 	}));
 }
 
