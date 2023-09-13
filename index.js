@@ -5,6 +5,17 @@ const { OutlineEffect } = await import('./modules/OutlineEffect.js');
 import { getContext } from "../../extensions.js";
 import { generateQuietPrompt } from "../../../script.js";
 import { eventSource, event_types } from "../../../script.js";
+import { extension_settings } from "../../extensions.js";
+import { saveSettingsDebounced } from "../../../script.js";
+import expressionsList from '/assets/models/Barbara/expressions.js';
+
+const settings = extension_settings.st3dw;
+
+settings.enabled === undefined ?
+	settings.enabled = false :
+	settings.enabled = settings.enabled
+
+let isExtEnabled = settings.enabled;
 
 const clock = new THREE.Clock();
 
@@ -36,8 +47,8 @@ const loader = new MMDLoader();
 let mesh;
 
 loader.loadWithAnimation(
-	'scripts/extensions/st3dw/test_model/model.pmx',
-	'scripts/extensions/st3dw/test_model/defanim.vmd',
+	'/assets/models/Barbara/model.pmx',
+	'/assets/models/Barbara/defanim.vmd',
 	mmd => {
 		mesh = mmd.mesh;
 		scene.add(mesh);
@@ -55,7 +66,13 @@ scene.add(light);
 const changedBones = {};
 
 function render() {
+	if (!isExtEnabled) {
+		renderer.domElement.style.display = 'none';
+		return;
+	}
+
 	requestAnimationFrame(render);
+
 	animHelper.update(clock.getDelta());
 
 	if (mesh && !jQuery.isEmptyObject(changedBones)) {
@@ -69,172 +86,59 @@ function render() {
 	outlineEffect.render(scene, camera);
 }
 
-const testExpressionsList = {
-	"right eye": {
-		"closed": {
-			i: 24,
-			value: 1
-		},
-		"closed smiling": {
-			i: 22,
-			value: 1
-		},
-		"half-closed": {
-			i: 24,
-			value: 0.25
-		},
-		"opened": {
-			i: [24, 22],
-			value: 0
-		}
-	},
-	"left eye": {
-		"closed": {
-			i: 25,
-			value: 1
-		},
-		"closed smiling": {
-			i: 23,
-			value: 1
-		},
-		"half-closed": {
-			i: 25,
-			value: 0.25
-		},
-		"opened": {
-			i: [25, 23],
-			value: 0
-		}
-	},
-	"lip corners": {
-		"down": {
-			i: 6,
-			value: 1
-		},
-		"upturned": {
-			i: 10,
-			value: 0.8
-		},
-		"pinched": {
-			i: 18,
-			value: 0.9
-		},
-		"neutral": {
-			i: [6, 10, 18],
-			value: 0
-		}
-	},
-	"mouth": {
-		"opened round": {
-			i: 4,
-			value: 1
-		},
-		"opened wide": {
-			i: 0,
-			value: 0.7
-		},
-		"fake smile": {
-			i: 8,
-			value: 0.4
-		},
-		"closed": {
-			i: [4, 0, 8],
-			value: 0
-		}
-	},
-	"tongue": {
-		"out": {
-			i: 15,
-			value: 1
-		},
-		"in": {
-			i: 15,
-			value: 0
-		}
-	},
-	"blushed": {
-		"yes": {
-			i: 60,
-			value: 1
-		},
-		"no": {
-			i: 60,
-			value: 0
-		}
-	},
-	"right brow": {
-		"sadly turned upward": {
-			i: 46,
-			value: 1
-		},
-		"upturned": {
-			i: 48,
-			value: 1
-		},
-		"angry furrowed": {
-			i: 50,
-			value: 1
-		},
-		"neutral": {
-			i: [46, 48, 50],
-			value: 0
-		}
-	},
-	"left brow": {
-		"sadly turned upward": {
-			i: 47,
-			value: 1
-		},
-		"upturned": {
-			i: 49,
-			value: 1
-		},
-		"angry furrowed": {
-			i: 51,
-			value: 1
-		},
-		"neutral": {
-			i: [47, 49, 51],
-			value: 0
-		}
-	},
-	"head": {
-		"tilted left": {
-			isBone: true,
-			i: 10,
-			x: 0.1,
-			y: 0,
-			z: 0.25
-		},
-		"tilted right": {
-			isBone: true,
-			i: 10,
-			x: 0.1,
-			y: 0,
-			z: -0.25
-		},
-		"not tilted": {
-			isBone: true,
-			i: 10,
-			x: 0,
-			y: 0,
-			z: 0
-		}
-	}
-}
+if (isExtEnabled) render();
+
+const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(expressionsList));
 
 eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
+	if (!settings.enabled) return;
+
 	const chat = getContext().chat;
 	const lastMes = chat[chat.length - 1];
-	const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(testExpressionsList));
 	
 	if (lastMes.is_name) {
-		const output = await generateQuietPrompt(`[Pause your roleplay. Now you will recognize ${lastMes.name}'s authentic facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions of this character, analyze latest events in roleplay. Provide correct JSON only. Template:\n${jsonTemplate}\n]`)
+		const output = await generateQuietPrompt(`[Pause your roleplay. Now you will recognize {{char}}'s authentic facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions of this character, analyze latest events in roleplay. Provide correct JSON only. Template:\n${jsonTemplate}\n]`)
 		applyMorphs(JSON.parse(output));
 	}
 });
 
-render();
+jQuery(() => {
+    const html = `
+    <div class="st3dw_settings">
+        <div class="inline-drawer">
+            <div class="inline-drawer-toggle inline-drawer-header">
+				<b>ST3DW</b>
+				<div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+            </div>
+            <div class="inline-drawer-content">
+				<label class="checkbox_label">
+					<input type="checkbox" id="st3dw_enabled">
+					Enabled
+				</label>
+            </div>
+        </div>
+    </div>`;
+
+	saveSettingsDebounced();
+
+    $('#extensions_settings').append(html);
+	$('#st3dw_enabled').on('input', function () {
+		let isEnabled = isExtEnabled = $(this).prop('checked');
+		settings.enabled = !!isEnabled;
+		saveSettingsDebounced();
+
+		const rendererStyle = renderer.domElement.style;
+
+		if (isEnabled) {
+			rendererStyle.display = 'block';
+			render();
+		}
+		else {
+			rendererStyle.display = 'none';
+		}
+	});
+	$('#st3dw_enabled').prop('checked', settings.enabled);
+});
 
 function tranformExpsListToTemplate(list) {
 	let modelMorphsTemplate = {};
@@ -257,50 +161,44 @@ function applyMorphs(obj) {
 	
 	for (let key in obj) {
 		const
-			morph = testExpressionsList[key][obj[key]],
+			morph = expressionsList[key][obj[key]],
 			index = morph.i,
 			value = morph.value,
-			duration = 400;
+			duration = 500;
 
 		// console.log(morph);
 
 		if (morph.isBone) {
-			let start = performance.now();
-
-			requestAnimationFrame(function animate(time) {
-				let timeFraction = (time - start) / 500;
-				if (timeFraction > 1) timeFraction = 1;
-
+			animate(duration, process => {
 				changedBones[index] = {
-					z: morph.z * timeFraction,
-					x: morph.x * timeFraction,
-					y: morph.y * timeFraction
+					z: morph.z * process,
+					x: morph.x * process,
+					y: morph.y * process
 				};
-		
-				if (timeFraction < 1) requestAnimationFrame(animate);
 			});
 
 			continue;
 		}
 
-		if (Array.isArray(index)) {
-			index.forEach(i => {
-				animate(duration, i, value);
+		if (!Array.isArray(index)) {
+			const indices = [index];
+			indices.forEach(i => {
+				animate(duration, process => {
+					mesh.morphTargetInfluences[i] = process * value;
+				});
 			});
-		} else {
-			animate(duration, index, value);
 		}
 	}
 }
 
-function animate(duration, index, value) {
+function animate(duration, fn) {
 	let start = performance.now();
 
 	requestAnimationFrame(function animate(time) {
 		let timeFraction = (time - start) / duration;
 		if (timeFraction > 1) timeFraction = 1;
 
-		mesh.morphTargetInfluences[index] = Math.pow(timeFraction, 2) * value;
+		fn(Math.pow(timeFraction, 2));
 
 		if (timeFraction < 1) requestAnimationFrame(animate);
 	});
@@ -350,7 +248,7 @@ window.enableMorphsDebug = function() {
 		};
 	}));
 
-	// applyMorphs({
-	// 	"head": "tilted left"
-	// })
+	applyMorphs({
+		"head": "tilted left"
+	})
 }
