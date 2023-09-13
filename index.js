@@ -212,6 +212,13 @@ const testExpressionsList = {
 			x: 0.1,
 			y: 0,
 			z: -0.25
+		},
+		"not tilted": {
+			isBone: true,
+			i: 10,
+			x: 0,
+			y: 0,
+			z: 0
 		}
 	}
 }
@@ -222,7 +229,7 @@ eventSource.on(event_types.MESSAGE_RECEIVED, async () => {
 	const jsonTemplate = JSON.stringify(tranformExpsListToTemplate(testExpressionsList));
 	
 	if (lastMes.is_name) {
-		const output = await generateQuietPrompt(`Pause your roleplay. Now you will recognize ${lastMes.name}'s realistic exact facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions and feelings of this character. Template:\n${jsonTemplate}\n\nProvide JSON only.`)
+		const output = await generateQuietPrompt(`[Pause your roleplay. Now you will recognize ${lastMes.name}'s authentic facial expressions. Below is JSON template. Fill in all fields, taking into account current emotions of this character, analyze latest events in roleplay. Provide correct JSON only. Template:\n${jsonTemplate}\n]`)
 		applyMorphs(JSON.parse(output));
 	}
 });
@@ -258,11 +265,20 @@ function applyMorphs(obj) {
 		// console.log(morph);
 
 		if (morph.isBone) {
-			changedBones[index] = {
-				z: morph.z,
-				x: morph.x,
-				y: morph.y
-			};
+			let start = performance.now();
+
+			requestAnimationFrame(function animate(time) {
+				let timeFraction = (time - start) / 500;
+				if (timeFraction > 1) timeFraction = 1;
+
+				changedBones[index] = {
+					z: morph.z * timeFraction,
+					x: morph.x * timeFraction,
+					y: morph.y * timeFraction
+				};
+		
+				if (timeFraction < 1) requestAnimationFrame(animate);
+			});
 
 			continue;
 		}
@@ -333,4 +349,8 @@ window.enableMorphsDebug = function() {
 			z: 0
 		};
 	}));
+
+	// applyMorphs({
+	// 	"head": "tilted left"
+	// })
 }
